@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Fleet Map</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        #map { height: 90vh; width: 100%; }
+    </style>
+</head>
+<body>
+<h2 style="text-align:center;">Fleet Vehicle Locations</h2>
+
+<!-- ✅ Layout with map + cards -->
+<div style="display: flex; gap: 20px;">
+    <div id="map" style="height: 600px; width: 70%;"></div>
+
+    <div id="cards" style="width: 30%;">
+    <h3>Vehicle Telemetry</h3>
+    <div id="vehicle-cards"></div>
+
+    <div id="alerts" style="margin-top: 30px;">
+        <h3>🚨 Active Alerts</h3>
+        <ul id="alert-list" style="color: red; list-style-type: none; padding-left: 0;"></ul>
+    </div>
+    
+    </div>
+</div>
+
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+    const map = L.map('map').setView([13.0, 77.6], 10);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+    let markersLayer = L.layerGroup().addTo(map);
+
+    function updateTelemetryCards(vehicles) {
+        const container = document.getElementById('vehicle-cards');
+        container.innerHTML = '';
+
+        vehicles.forEach(v => {
+            const card = document.createElement('div');
+            card.style.border = '1px solid #ccc';
+            card.style.borderRadius = '8px';
+            card.style.marginBottom = '10px';
+            card.style.padding = '10px';
+            card.style.backgroundColor = v.fuel < 25 ? '#ffefef' : '#f0fff0';
+
+            card.innerHTML = `
+                <strong>${v.vin}</strong><br>
+                Speed: ${v.speed} km/h<br>
+                Fuel: ${v.fuel}%<br>
+                Time: ${v.timestamp}
+            `;
+            container.appendChild(card);
+        });
+    }
+
+    async function updateMap() {
+        const res = await fetch("/dashboard/api/latest/");
+        const vehicles = await res.json();
+
+        markersLayer.clearLayers();
+
+        vehicles.forEach(v => {
+            const iconColor = v.fuel < 25 ? 'red' : 'green';
+
+            const marker = L.marker([v.lat, v.lon], {
+                icon: L.icon({
+                    iconUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-${iconColor}.png`,
+                    iconSize: [25, 41],
+                    iconAnchor: [12, 41],
+                    popupAnchor: [1, -34],
+                    shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
+                    shadowSize: [41, 41],
+                })
+            });
+
+            marker.bindPopup(`
+                <b>${v.vin}</b><br>
+                Speed: ${v.speed} km/h<br>
+                Fuel: ${v.fuel}%<br>
+                Time: ${v.timestamp}
+            `);
+            markersLayer.addLayer(marker);
+        });
+
+        updateTelemetryCards(vehicles);
+        updateAlerts(vehicles);
+    }
+
+    function updateAlerts(vehicles) {
+    const alertList = document.getElementById('alert-list');
+    alertList.innerHTML = '';
+
+    const now = new Date();
+
+    vehicles.forEach(v => {
+        const timestamp = new Date(v.timestamp);
+        const secondsAgo = (now - timestamp) / 1000;
+
+        if (v.speed > 100) {
+            const li = document.createElement('li');
+            li.textContent = `[${timestamp.toLocaleTimeString()}] ⚡ ${v.vin} speeding at ${v.speed} km/h`;
+            alertList.appendChild(li);
+        }
+
+        if (v.fuel < 25) {
+            const li = document.createElement('li');
+            li.textContent = `[${timestamp.toLocaleTimeString()}] 🛢️ ${v.vin} fuel low: ${v.fuel}%`;
+            alertList.appendChild(li);
+        }
+
+        if (secondsAgo > 30) {
+            const li = document.createElement('li');
+            li.textContent = `[${timestamp.toLocaleTimeString()}] ⏱️ ${v.vin} no update for ${Math.round(secondsAgo)} sec`;
+            alertList.appendChild(li);
+        }
+    });
+
+    if (alertList.children.length === 0) {
+        const li = document.createElement('li');
+        li.textContent = '✅ All systems normal';
+        li.style.color = 'green';
+        alertList.appendChild(li);
+    }
+}
+
+
+    updateMap();
+    
+
+    setInterval(updateMap, 5000);
+
+
+
+
+</script>
+
+</body>
+</html>

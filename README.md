@@ -4,7 +4,7 @@
 
 ---
 
-## 🌟 Features
+## Features
 
 - 🗺️ **Live Map Tracking** – View real-time GPS positions of all vehicles with interactive Leaflet.js maps.
 - ⛽ **Vehicle Telemetry** – Monitor speed, fuel, and timestamp per VIN.
@@ -15,7 +15,7 @@
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 - **Backend**: Python, Django, Django REST Framework  
 - **Frontend**: Leaflet.js, HTML/CSS  
